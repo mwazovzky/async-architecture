@@ -1,57 +1,71 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
+	"async-architecure/http/handlers"
+
+	gohandlers "github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
-type User struct {
-	UUID     string
-	Username string
-	Email    string
-	Role     string
-}
+var port string
+var allowedOrigin string
 
 func init() {
 	godotenv.Load()
+	port = os.Getenv("PORT")
+	allowedOrigin = os.Getenv("PORT")
 }
 
 func main() {
 	db := connectDB()
 	defer db.Close()
 
-	users := []User{}
-	err := getUsers(db, &users)
-	if err != nil {
-		log.Println(err)
+	router := mux.NewRouter()
+	authHandlers := handlers.NewAuthHandlers(db)
+	authApi := router.PathPrefix("/auth").Subrouter()
+	authApi.HandleFunc("/users", authHandlers.UserIndex).Methods(http.MethodGet)
+
+	// CORS
+	cors := gohandlers.CORS(
+		gohandlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}),
+		gohandlers.AllowedOrigins([]string{allowedOrigin}),
+		gohandlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
+	)
+
+	server := &http.Server{
+		Addr:         port,
+		Handler:      cors(router),
+		IdleTimeout:  120 * time.Second,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
 	}
 
-	log.Println(users)
-}
-
-func getUsers(db *sql.DB, users *[]User) error {
-	var user User
-
-	rows, err := db.Query("SELECT uuid, username, email, role FROM users")
-	if err != nil {
-		return err
-	}
-
-	for rows.Next() {
-		err = rows.Scan(&user.UUID, &user.Username, &user.Email, &user.Role)
+	go func() {
+		log.Println("Starting http server at", port)
+		err := server.ListenAndServe()
 		if err != nil {
-			return err
+			log.Println("Error", err)
 		}
+	}()
 
-		*users = append(*users, user)
-	}
-
-	return nil
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	sig := <-sigChan
+	log.Printf("Recieved terminate signal, graceful shutdown, signal: [%s]", sig)
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	server.Shutdown(ctx)
 }
 
 func connectDB() *sql.DB {

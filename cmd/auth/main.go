@@ -25,7 +25,7 @@ var allowedOrigin string
 func init() {
 	godotenv.Load()
 	port = os.Getenv("PORT")
-	allowedOrigin = os.Getenv("PORT")
+	allowedOrigin = os.Getenv("ALLOWED_ORIGIN")
 }
 
 func main() {
@@ -35,7 +35,13 @@ func main() {
 	router := mux.NewRouter()
 	authHandlers := handlers.NewAuthHandlers(db)
 	authApi := router.PathPrefix("/auth").Subrouter()
-	authApi.HandleFunc("/users", authHandlers.UserIndex).Methods(http.MethodGet)
+	authApi.HandleFunc("/register", authHandlers.Register).Methods(http.MethodPost)
+	authApi.HandleFunc("/login", authHandlers.Login).Methods(http.MethodPost)
+	authApi.HandleFunc("/logout", authHandlers.Logout).Methods(http.MethodPost)
+	authApi.HandleFunc("/check", authHandlers.Check).Methods(http.MethodPost)
+	authApi.HandleFunc("/user", authHandlers.UserIndex).Methods(http.MethodGet)
+	authApi.HandleFunc("/user/{id:[0-9]+}", authHandlers.UserUpdate).Methods(http.MethodPatch)
+	authApi.HandleFunc("/user/{id:[0-9]+}", authHandlers.UserDelete).Methods(http.MethodDelete)
 
 	// CORS
 	cors := gohandlers.CORS(

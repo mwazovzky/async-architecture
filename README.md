@@ -51,3 +51,11 @@ curl localhost:8080/auth/user'
 UserCreated
 UserDeleted
 UserRoleChanged
+
+## CLIENT SERVICE
+
+### API
+
+GET /client/ping
+
+curl -H "Authorization: Bearer $ACCESS_TOKEN" localhost:8081/client/ping

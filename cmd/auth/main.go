@@ -24,8 +24,8 @@ var allowedOrigin string
 
 func init() {
 	godotenv.Load()
-	port = os.Getenv("PORT")
-	allowedOrigin = os.Getenv("ALLOWED_ORIGIN")
+	port = os.Getenv("AUTH_PORT")
+	allowedOrigin = os.Getenv("AUTH_ALLOWED_ORIGIN")
 }
 
 func main() {
